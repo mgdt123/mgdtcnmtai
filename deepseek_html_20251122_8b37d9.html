@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前后台实时同步系统</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 1.5rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .frontend .panel-header {
+            background: linear-gradient(135deg, var(--primary), #2980b9);
+        }
+        
+        .backend .panel-header {
+            background: linear-gradient(135deg, var(--secondary), #27ae60);
+        }
+        
+        .panel-icon {
+            font-size: 1.5rem;
+        }
+        
+        .panel-content {
+            padding: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-success {
+            background-color: var(--secondary);
+        }
+        
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #7f8c8d;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0.5rem 0;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            background-color: var(--secondary);
+            color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateX(150%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .sync-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .blink {
+            animation: blink 1.5s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .highlight {
+            background-color: rgba(46, 204, 113, 0.2) !important;
+            transition: background-color 1.5s ease;
+        }
+        
+        .timestamp {
+            font-size: 0.8rem;
+            color: #95a5a6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 前台页面 -->
+        <div class="panel frontend">
+            <div class="panel-header">
+                <div class="panel-icon">📝</div>
+                <div>
+                    <h2>前台信息提交</h2>
+                    <p>用户在此提交信息，后台可实时查看</p>
+                </div>
+            </div>
+            <div class="panel-content">
+                <form id="submission-form">
+                    <div class="form-group">
+                        <label for="name">姓名</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">邮箱</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">电话</label>
+                        <input type="tel" id="phone" name="phone">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">信息类别</label>
+                        <select id="category" name="category" required>
+                            <option value="">请选择类别</option>
+                            <option value="咨询">咨询</option>
+                            <option value="投诉">投诉</option>
+                            <option value="建议">建议</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message">详细信息</label>
+                        <textarea id="message" name="message" rows="5" required placeholder="请输入您的详细信息..."></textarea>
+                    </div>
+                    
+                    <button type="submit">
+                        <span>提交信息</span>
+                        <span>✓</span>
+                    </button>
+                </form>
+                
+                <div class="sync-indicator">
+                    <span class="blink">●</span>
+                    <span>实时同步中</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 后台页面 -->
+        <div class="panel backend">
+            <div class="panel-header">
+                <div class="panel-icon">📊</div>
+                <div>
+                    <h2>后台数据查看</h2>
+                    <p>实时查看所有用户提交的信息</p>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-label">总提交数</div>
+                        <div class="stat-value" id="total-submissions">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">今日提交</div>
+                        <div class="stat-value" id="today-submissions">0</div>
+                    </div>
+                </div>
+                
+                <div id="data-table-container">
+                    <table id="data-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>姓名</th>
+                                <th>类别</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-body">
+                            <!-- 数据将通过JavaScript动态添加 -->
+                        </tbody>
+                    </table>
+                    
+                    <div id="empty-state" class="empty-state">
+                        <p>暂无提交数据</p>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem;">
+                    <button id="refresh-btn" class="btn-success">
+                        <span>刷新数据</span>
+                        <span>↻</span>
+                    </button>
+                    <button id="clear-all-btn" class="btn-danger">
+                        <span>清除所有数据</span>
+                        <span>×</span>
+                    </button>
+                </div>
+                
+                <div class="sync-indicator">
+                    <span class="blink">●</span>
+                    <span>实时同步中</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification">
+        <span>✓</span>
+        <span>信息提交成功！</span>
+    </div>
+
+    <script>
+        // 显示通知
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.querySelector('span:last-child').textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 获取当前时间戳
+        function getCurrentTimestamp() {
+            return new Date().toLocaleString();
+        }
+        
+        // 保存提交数据
+        function saveSubmission(data) {
+            let submissions = JSON.parse(localStorage.getItem('submissions')) || [];
+            submissions.push(data);
+            localStorage.setItem('submissions', JSON.stringify(submissions));
+            
+            // 触发自定义事件，通知其他页面数据已更新
+            window.dispatchEvent(new Event('storageUpdated'));
+        }
+        
+        // 更新后台视图
+        function updateBackendView() {
+            const submissions = JSON.parse(localStorage.getItem('submissions')) || [];
+            const tableBody = document.getElementById('data-body');
+            const emptyState = document.getElementById('empty-state');
+            
+            // 更新统计信息
+            updateStats(submissions);
+            
+            // 清空表格
+            tableBody.innerHTML = '';
+            
+            if (submissions.length === 0) {
+                document.getElementById('data-table').style.display = 'none';
+                emptyState.style.display = 'block';
+            } else {
+                document.getElementById('data-table').style.display = 'table';
+                emptyState.style.display = 'none';
+                
+                // 添加数据行（按时间倒序）
+                submissions.slice().reverse().forEach((submission, index) => {
+                    const row = document.createElement('tr');
+                    if (index === 0) {
+                        row.classList.add('highlight');
+                    }
+                    
+                    row.innerHTML = `
+                        <td>
+                            <div>${submission.timestamp}</div>
+                            <div class="timestamp">ID: ${submission.id}</div>
+                        </td>
+                        <td>${submission.name}</td>
+                        <td>${submission.category}</td>
+                        <td>
+                            <span style="color: ${getStatusColor(submission.status)}">
+                                ${submission.status || '新提交'}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn-view" data-id="${submission.id}">查看</button>
+                            <button class="btn-danger btn-delete" data-id="${submission.id}">删除</button>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // 添加查看按钮事件
+                document.querySelectorAll('.btn-view').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const id = parseInt(this.getAttribute('data-id'));
+                        viewSubmission(id);
+                    });
+                });
+                
+                // 添加删除按钮事件
+                document.querySelectorAll('.btn-delete').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const id = parseInt(this.getAttribute('data-id'));
+                        deleteSubmission(id);
+                    });
+                });
+            }
+        }
+        
+        // 获取状态颜色
+        function getStatusColor(status) {
+            switch(status) {
+                case '已处理': return '#2ecc71';
+                case '处理中': return '#3498db';
+                case '待处理': return '#f39c12';
+                default: return '#95a5a6';
+            }
+        }
+        
+        // 查看提交详情
+        function viewSubmission(id) {
+            const submissions = JSON.parse(localStorage.getItem('submissions')) || [];
+            const submission = submissions.find(sub => sub.id === id);
+            
+            if (submission) {
+                alert(
+                    `提交详情:\n\n` +
+                    `ID: ${submission.id}\n` +
+                    `时间: ${submission.timestamp}\n` +
+                    `姓名: ${submission.name}\n` +
+                    `邮箱: ${submission.email}\n` +
+                    `电话: ${submission.phone || '未填写'}\n` +
+                    `类别: ${submission.category}\n` +
+                    `详细信息: ${submission.message}`
+                );
+            }
+        }
+        
+        // 更新统计信息
+        function updateStats(submissions) {
+            document.getElementById('total-submissions').textContent = submissions.length;
+            
+            // 计算今日提交数
+            const today = new Date().toLocaleDateString();
+            const todaySubmissions = submissions.filter(sub => {
+                return new Date(sub.id).toLocaleDateString() === today;
+            });
+            document.getElementById('today-submissions').textContent = todaySubmissions.length;
+        }
+        
+        // 删除单个提交
+        function deleteSubmission(id) {
+            if (confirm('确定要删除这条记录吗？')) {
+                let submissions = JSON.parse(localStorage.getItem('submissions')) || [];
+                submissions = submissions.filter(sub => sub.id !== id);
+                localStorage.setItem('submissions', JSON.stringify(submissions));
+                
+                // 触发自定义事件，通知其他页面数据已更新
+                window.dispatchEvent(new Event('storageUpdated'));
+                updateBackendView();
+                
+                showNotification('记录已删除！');
+            }
+        }
+        
+        // 清除所有数据
+        document.getElementById('clear-all-btn').addEventListener('click', function() {
+            if (confirm('确定要清除所有数据吗？此操作不可恢复！')) {
+                localStorage.removeItem('submissions');
+                
+                // 触发自定义事件，通知其他页面数据已更新
+                window.dispatchEvent(new Event('storageUpdated'));
+                updateBackendView();
+                
+                showNotification('所有数据已清除！');
+            }
+        });
+        
+        // 刷新数据
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            updateBackendView();
+            showNotification('数据已刷新！');
+        });
+        
+        // 表单提交功能
+        document.getElementById('submission-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                id: Date.now(),
+                timestamp: getCurrentTimestamp(),
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                category: document.getElementById('category').value,
+                message: document.getElementById('message').value,
+                status: '新提交'
+            };
+            
+            // 保存数据
+            saveSubmission(formData);
+            
+            // 重置表单
+            document.getElementById('submission-form').reset();
+            
+            // 显示成功消息
+            showNotification('信息提交成功！');
+            
+            // 更新后台视图（如果后台页面在当前窗口）
+            updateBackendView();
+        });
+        
+        // 监听storage事件，实现跨标签页同步
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'submissions') {
+                updateBackendView();
+            }
+        });
+        
+        // 监听自定义storageUpdated事件
+        window.addEventListener('storageUpdated', function() {
+            updateBackendView();
+        });
+        
+        // 定期检查数据更新（用于实时同步）
+        setInterval(function() {
+            updateBackendView();
+        }, 2000);
+        
+        // 初始化后台视图
+        updateBackendView();
+    </script>
+</body>
+</html>
